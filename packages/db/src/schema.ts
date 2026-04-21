@@ -1,32 +1,33 @@
-import { pgTable, serial, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, numeric, uuid } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  name: text("name"),
+  id: uuid("id").defaultRandom().primaryKey(),
+
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  balance: integer("balance").default(10000), 
+
+  balance: numeric("balance", { precision: 20, scale: 6 })
+    .default("10000"),
+
   createdAt: timestamp("created_at").defaultNow()
 });
+
 
 
 export const trades = pgTable("trades", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  userId: uuid("user_id").notNull(), // FK to users.id
+
   asset: text("asset").notNull(), // BTC, ETH, SOL
-  side: text("side").notNull(),   // long/short
-  leverage: integer("leverage").notNull(),
-  entryPrice: integer("entry_price").notNull(),
-  status: text("status").notNull(), // OPEN/CLOSED
+  side: text("side").notNull(),   // long / short
+
+  leverage: numeric("leverage", { precision: 10, scale: 2 }).notNull(),
+
+  entryPrice: numeric("entry_price", { precision: 20, scale: 6 }).notNull(),
+
+  status: text("status").notNull(), // OPEN / CLOSED
+
   createdAt: timestamp("created_at").defaultNow()
 });
 
 
-export const closedTrades = pgTable("closed_trades", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  tradeId: integer("trade_id").notNull(),
-  exitPrice: integer("exit_price").notNull(),
-  pnl: integer("pnl").notNull(),
-  closedAt: timestamp("closed_at").defaultNow()
-});
