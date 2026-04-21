@@ -5,7 +5,7 @@ export const users = pgTable("users", {
 
   email: text("email").notNull().unique(),
 
-  balance: numeric("balance", { precision: 20, scale: 6 })
+  balance: numeric("balance", { precision: 20, scale: 4 })
     .default("10000"),
 
   createdAt: timestamp("created_at").defaultNow()
@@ -16,14 +16,18 @@ export const users = pgTable("users", {
 export const trades = pgTable("trades", {
   id: uuid("id").defaultRandom().primaryKey(),
 
-  userId: uuid("user_id").notNull(), // FK to users.id
+  userId: uuid("user_id").notNull().references(() => users.id), // FK to users.id
 
   asset: text("asset").notNull(), // BTC, ETH, SOL
   side: text("side").notNull(),   // long / short
 
   leverage: numeric("leverage", { precision: 10, scale: 2 }).notNull(),
 
-  entryPrice: numeric("entry_price", { precision: 20, scale: 6 }).notNull(),
+  positionSize: numeric("position_size", { precision: 20, scale: 6}).notNull(),
+
+  marginUsed: numeric("margin_used", { precision: 20, scale: 4}).notNull(),
+
+  entryPrice: numeric("entry_price", { precision: 20, scale: 4 }).notNull(),
 
   status: text("status").notNull(), // OPEN / CLOSED
 
