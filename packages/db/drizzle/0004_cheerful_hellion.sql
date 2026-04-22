@@ -1,0 +1,1 @@
+ALTER TABLE "trades" ADD COLUMN "exit_price" numeric(20, 4);

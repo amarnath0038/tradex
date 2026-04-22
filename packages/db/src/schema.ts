@@ -29,6 +29,8 @@ export const trades = pgTable("trades", {
 
   entryPrice: numeric("entry_price", { precision: 20, scale: 4 }).notNull(),
 
+  exitPrice: numeric("exit_price", { precision: 20, scale: 4 }),
+
   status: text("status").notNull(), // OPEN / CLOSED
 
   createdAt: timestamp("created_at").defaultNow()
