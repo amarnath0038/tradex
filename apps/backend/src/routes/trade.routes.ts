@@ -1,11 +1,13 @@
 import { Router } from "express";
-import { auth } from "../middlewares/auth";
+import { authMiddleware } from "../middlewares/auth";
 import { validate } from "../middlewares/validate";
-import { openTrade } from "../controllers/trade.controller";
-import { openTradeSchema } from "../schemas/trade.schema";
+import { closeTrade, openTrade } from "../controllers/trade.controller";
+import { closeTradeSchema, openTradeSchema } from "../schemas/trade.schema";
 
 const router: Router = Router();
 
-router.post("/open", auth, validate(openTradeSchema), openTrade);
+router.post("/open", authMiddleware, validate(openTradeSchema), openTrade);
+
+router.post("/close", authMiddleware, validate(closeTradeSchema), closeTrade);
 
 export const tradeRoutes =  router;
