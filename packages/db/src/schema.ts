@@ -31,7 +31,7 @@ export const trades = pgTable("trades", {
 
   exitPrice: numeric("exit_price", { precision: 20, scale: 4 }),
 
-  status: text("status").notNull(), // OPEN / CLOSED
+  status: text("status").$type<"OPEN" | "CLOSED" | "LIQUIDATED">().notNull().default("OPEN"),
 
   createdAt: timestamp("created_at").defaultNow()
 });
