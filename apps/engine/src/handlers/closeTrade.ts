@@ -1,6 +1,9 @@
 import { db, trades, users } from "@repo/db";
 import { eq } from "@repo/db";
 import { getPrice } from "../priceStore";
+import { isValidAsset } from "../utils/isValidAsset";
+import { calculatePnl } from "../utils/pnl";
+import { computeTradeOutcome } from "../utils/calculateTradeOutcome";
 
 export const handleCloseTrade = async (data: any) => {
   const { userId, tradeId } = data;
@@ -24,47 +27,25 @@ export const handleCloseTrade = async (data: any) => {
     return;
   }
 
-  const entryPrice = Number(trade.entryPrice);
-  const positionSize = Number(trade.positionSize);
-  const leverage = Number(trade.leverage);
-  const marginUsed = Number(trade.marginUsed);
-
-  const allowedAssets = ["BTC", "ETH", "SOL"] as const;
-
-  if (!allowedAssets.includes(trade.asset as any)) {
-    console.log("invalid asset:", trade.asset);
+  if (!isValidAsset(trade.asset)) {
+    console.log("Invalid asset", trade.asset);
     return;
   }
 
-  const exitPrice = getPrice(trade.asset as typeof allowedAssets[number]);
-    
+  const marginUsed = Number(trade.marginUsed);
+  const exitPrice = getPrice(trade.asset);
+  const { rawPnl, loss, liquidated, finalPnl, pnlFixed} = computeTradeOutcome(trade, exitPrice)
+  const status = liquidated ? "LIQUIDATED" : "CLOSED";
 
   console.log({
-    entryPrice,
-    exitPrice,
-    positionSize,
-    leverage,
-    marginUsed
+    rawPnl,
+    loss,
+    marginUsed,
+    finalPnl,
+    pnlFixed,
+    liquidated
   });
-  
 
-  let pnl = 0;
-
-  if (trade.side === "long") {
-    pnl = (exitPrice - entryPrice) * positionSize * leverage;
-  } else {
-    pnl = (entryPrice - exitPrice) * positionSize * leverage;
-  }
-
-  let liquidated = false;
-
-  if (-pnl >= marginUsed) {
-    pnl = -marginUsed;
-    liquidated = true;
-  }
-
-  const status = liquidated ? "LIQUIDATED" : "CLOSED";
-  const pnlFixed = Number(pnl.toFixed(2));
 
   const user = await db.query.users.findFirst({
     where: (u, { eq }) => eq(u.id, userId)
@@ -98,6 +79,7 @@ export const handleCloseTrade = async (data: any) => {
   console.log("Trade closed", {
     tradeId,
     pnl: pnlFixed,
-    status
+    status,
+    reason: data.reason || "manual" // to see if its manually closed or liquidated
   });
 };
