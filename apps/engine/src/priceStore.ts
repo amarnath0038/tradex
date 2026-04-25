@@ -1,4 +1,5 @@
-type Asset = "BTC" | "ETH" | "SOL";
+export const ASSETS = ["BTC", "ETH", "SOL"] as const;
+export type Asset = typeof ASSETS[number];
 
 const prices: Record<Asset, number> = {
   BTC: 70000,
