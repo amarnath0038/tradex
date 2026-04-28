@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import  { redis } from "@repo/redis"
+import  { pub } from "@repo/redis"
 import { toStreamArgs } from "../utils/streamArgs";
 
 //open trade
@@ -18,7 +18,7 @@ export const openTrade = async (req: Request, res: Response) => {
 
   //send to redis stream
   
-  await redis.xadd("stream:app:info", "*", ...toStreamArgs({
+  await pub.xadd("stream:app:info", "*", ...toStreamArgs({
       type: "OPEN_TRADE",
       userId,
       asset,
@@ -43,7 +43,7 @@ export const closeTrade = async (req: Request, res: Response) => {
 
   const { tradeId } = req.body;
 
-  await redis.xadd("stream:app:info", "*", ...toStreamArgs({
+  await pub.xadd("stream:app:info", "*", ...toStreamArgs({
       type: "CLOSE_TRADE",
       userId,
       tradeId
