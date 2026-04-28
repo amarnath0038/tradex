@@ -23,7 +23,7 @@ export const requestLink = async (req: Request, res: Response) => {
 
   await sendMagicLink(email, token);
 
-  res.json({ message: "email sent" });
+  res.json({ message: "email sent", token: token });
 };
 
 export const verify = async (req: Request, res: Response) => {
