@@ -1,11 +1,11 @@
-import { redis } from "@repo/redis";
+import { stream } from "@repo/redis";
 import { handleOpenTrade } from "../handlers/openTrade";
 import { handleCloseTrade } from "../handlers/closeTrade";
 
 export const startRedisStream = async () => {
     let lastId = "$";
     while (true) {
-        const response = await redis.xread(
+        const response = await stream.xread(
             "BLOCK", 0,
             "STREAMS",
             "stream:app:info",
@@ -14,11 +14,11 @@ export const startRedisStream = async () => {
 
         if (!response || response.length === 0) continue;
 
-        const stream = response[0];
-        if (!stream) continue;
+        const streamData = response[0];
+        if (!streamData) continue;
 
         // extract message
-        const messages = stream[1];
+        const messages = streamData[1];
         if (!messages || messages.length === 0) continue;
 
         for (const message of messages) {

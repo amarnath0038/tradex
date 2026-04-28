@@ -2,8 +2,8 @@ import { db, trades, users } from "@repo/db";
 import { eq } from "@repo/db";
 import { getPrice } from "../priceStore";
 import { isValidAsset } from "../utils/isValidAsset";
-import { calculatePnl } from "../utils/pnl";
 import { computeTradeOutcome } from "../utils/calculateTradeOutcome";
+import { pub } from "@repo/redis";
 
 export const handleCloseTrade = async (data: any) => {
   const { userId, tradeId } = data;
@@ -75,6 +75,15 @@ export const handleCloseTrade = async (data: any) => {
     console.log("DB trabsaction error");
   }
   
+
+  await pub.publish("channel:prices", JSON.stringify({
+    userId,
+    tradeId,
+    status,
+    pnl: pnlFixed
+  }))
+
+
 
   console.log("Trade closed", {
     tradeId,

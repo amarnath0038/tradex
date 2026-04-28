@@ -3,12 +3,19 @@ import { getPrice, updatePrices } from "../priceStore";
 import { isValidAsset } from "../utils/isValidAsset";
 import { shouldLiquidate } from "../utils/liquidation";
 import { handleCloseTrade } from "../handlers/closeTrade";
+import { pub } from "@repo/redis";
 
 export const startPriceloop =  async () => {
     while (true) {
         updatePrices();
+        const price = getPrice("BTC");
 
-        console.log("BTC:", getPrice("BTC"));
+        console.log("BTC:", price);
+
+        await pub.publish("channel:prices", JSON.stringify({
+            asset: "BTC",
+            price,
+        }))
 
         const openTrades = await db.query.trades.findMany({
             where: (t, { eq }) => eq(t.status, "OPEN")
