@@ -1,11 +1,18 @@
-import { startPriceloop } from "./services/priceloop";
-import { startRedisStream } from "./services/redisStream";
+import { startPriceSubscriber } from "./consumers/priceSubscriber";
+import { startTradeConsumer } from "./consumers/tradeConsumer";
+
 
 async function start() {
-  console.log("Engine started...");
+  console.log("Starting services");
 
-  startPriceloop();
-  startRedisStream();
+  await startPriceSubscriber();
+  console.log("Price subscriber ready");
+
+  startTradeConsumer();
+  console.log("Trade consumer started");
 }
 
-start();
+start().catch((err) => {
+  console.log("Engine crashed:", err);
+  process.exit(1);
+});
