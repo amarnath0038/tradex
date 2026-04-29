@@ -1,15 +1,22 @@
 import { Request, Response } from "express";
-import  { pub } from "@repo/redis"
+import  { stream } from "@repo/redis"
 import { toStreamArgs } from "../utils/streamArgs";
+import { isMarketReady } from "../utils/isMarketReady";
 
 //open trade
 export const openTrade = async (req: Request, res: Response) => {
+
+  const ready = await isMarketReady();
+  if (!ready) {
+    return res.status(400).json({error:"Market not ready"})
+  }
   const userId = req.userId;
 
   if (!userId) {
     return res.status(401).json({ error: "unauthorized" });
   }
 
+  
   const { asset, side, leverage, positionSize } = req.body;
 
   if (!leverage || leverage <= 0) {
@@ -18,7 +25,7 @@ export const openTrade = async (req: Request, res: Response) => {
 
   //send to redis stream
   
-  await pub.xadd("stream:app:info", "*", ...toStreamArgs({
+  await stream.xadd("stream:app:info", "*", ...toStreamArgs({
       type: "OPEN_TRADE",
       userId,
       asset,
@@ -43,7 +50,7 @@ export const closeTrade = async (req: Request, res: Response) => {
 
   const { tradeId } = req.body;
 
-  await pub.xadd("stream:app:info", "*", ...toStreamArgs({
+  await stream.xadd("stream:app:info", "*", ...toStreamArgs({
       type: "CLOSE_TRADE",
       userId,
       tradeId
