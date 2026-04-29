@@ -2,15 +2,51 @@ import { Redis } from "ioredis";
 
 const url = process.env.REDIS_URL || "redis://localhost:6379";
 
-export const pub = new Redis(url);
-export const sub = new Redis(url);
-export const stream = new Redis(url);
+const createClient = (name: string) => {
+  const client = new Redis(url, {
+    // retry strategy if redis goes down
+    retryStrategy(times) {
+      return Math.min(times*50, 2000);
+    }
+  });
 
-pub.on("connect", () => {console.log("Redis connected");});
-sub.on("connect", () => {console.log("Redis connected");});
-stream.on("connect", () => {console.log("Redis connected");});
+  client.on("connect", () => {
+    console.log(`Redis:${name} connected.`);
+  })
+
+  client.on("ready", () => {
+    console.log(`Redis:${name} ready.`);
+  })
+
+  client.on("error", (err) => {
+    console.log(`Redis:${name} error.`, err.message);
+  })
+
+  client.on("close", () => {
+    console.warn(`Redis:${name} closed`)
+  })
+
+  client.on("reconnecting", () => {
+    console.log(`Redis:${name} reconnecting.`);
+  })
+
+  return client;
+}
 
 
-pub.on("error", (err: Error) => {console.error("Redis error:", err);});
-sub.on("error", (err: Error) => {console.error("Redis error:", err);});
-stream.on("error", (err: Error) => {console.error("Redis error:", err);});
+export const pub = createClient("pub");
+export const sub = createClient("sub");
+export const stream = createClient("stream"); // trade queue
+export const state = createClient("state");   // GET/SET current system state
+
+
+
+
+
+
+
+
+
+
+
+
