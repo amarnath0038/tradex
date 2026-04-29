@@ -1,8 +1,8 @@
 import { db, users, trades } from "@repo/db";
 import { eq } from "@repo/db";
-import { getPrice } from "../priceStore";
+import { getPrice } from "../store/priceStore";
 
-export const handleOpenTrade = async (data:any) => {
+export const openTrade = async (data:any) => {
   const {userId, asset, side, leverage, positionSize} = data;
 
   const lev = Number(leverage);

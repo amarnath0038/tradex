@@ -1,11 +1,11 @@
 import { db, trades, users } from "@repo/db";
 import { eq } from "@repo/db";
-import { getPrice } from "../priceStore";
+import { getPrice } from "../store/priceStore";
 import { isValidAsset } from "../utils/isValidAsset";
-import { computeTradeOutcome } from "../utils/calculateTradeOutcome";
+import { computeTradeOutcome } from "../utils/computeTradeOutcome";
 import { pub } from "@repo/redis";
 
-export const handleCloseTrade = async (data: any) => {
+export const closeTrade = async (data: any) => {
   const { userId, tradeId } = data;
 
   const trade = await db.query.trades.findFirst({
@@ -34,12 +34,11 @@ export const handleCloseTrade = async (data: any) => {
 
   const marginUsed = Number(trade.marginUsed);
   const exitPrice = getPrice(trade.asset);
-  const { rawPnl, loss, liquidated, finalPnl, pnlFixed} = computeTradeOutcome(trade, exitPrice)
+  const { rawPnl, liquidated, finalPnl, pnlFixed} = computeTradeOutcome(trade, exitPrice)
   const status = liquidated ? "LIQUIDATED" : "CLOSED";
 
   console.log({
     rawPnl,
-    loss,
     marginUsed,
     finalPnl,
     pnlFixed,
