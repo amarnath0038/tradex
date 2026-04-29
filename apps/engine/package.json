@@ -16,6 +16,7 @@
   "dependencies": {
     "@repo/typescript-config": "workspace:*",
     "@repo/db": "workspace:*",
-    "@repo/redis": "workspace:*"
+    "@repo/redis": "workspace:*",
+    "@repo/types": "workspace:*"
   }
 }
