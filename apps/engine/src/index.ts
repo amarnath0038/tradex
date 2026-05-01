@@ -1,9 +1,12 @@
 import { startPriceSubscriber } from "./consumers/priceSubscriber";
-import { startTradeConsumer } from "./consumers/tradeConsumer";
+import { initConsumerGroup, startTradeConsumer } from "./consumers/tradeConsumer";
+
 
 
 async function start() {
   console.log("Starting services");
+
+  await initConsumerGroup();
 
   await startPriceSubscriber();
   console.log("Price subscriber ready");
