@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1776734774584,
-      "tag": "0000_blue_power_pack",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1776752163055,
-      "tag": "0001_pink_blonde_phantom",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1776759065607,
-      "tag": "0002_quiet_gladiator",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1776772148670,
-      "tag": "0003_grey_centennial",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1776833958102,
-      "tag": "0004_cheerful_hellion",
+      "when": 1777468379453,
+      "tag": "0000_panoramic_newton_destine",
       "breakpoints": true
     }
   ]
