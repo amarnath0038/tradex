@@ -3,7 +3,7 @@ import { eq } from "@repo/db";
 import { getPrice } from "../store/priceStore";
 import { isValidAsset } from "../utils/isValidAsset";
 import { computeTradeOutcome } from "../utils/computeTradeOutcome";
-import { pub } from "@repo/redis";
+import { pub, REDIS_KEYS, sendErrorResponse, sendSuccessResponse, sendTradeResponse } from "@repo/redis";
 
 export const closeTrade = async (data: any) => {
   const { userId, tradeId } = data;
@@ -12,25 +12,42 @@ export const closeTrade = async (data: any) => {
     where: (t, { eq }) => eq(t.id, tradeId)
   });
 
+
   if (!trade) {
-    console.log("trade not found");
+    await sendErrorResponse({
+      requestId: data.requestId,
+      type: "CLOSE_TRADE",
+      message: "trade not found"
+    })
     return;
   }
 
-  if (trade.userId !== userId) {
-    console.log("not your trade");
-    return;
-  }
+if (trade.userId !== userId) {
+  await sendErrorResponse({
+    requestId: data.requestId,
+    type: "CLOSE_TRADE",
+    message: "unauthorized trade access"
+  });
+  return;
+}
 
-  if (trade.status !== "OPEN") {
-    console.log("trade already closed");
-    return;
-  }
+if (trade.status !== "OPEN") {
+  await sendErrorResponse({
+    requestId: data.requestId,
+    type: "CLOSE_TRADE",
+    message: "trade already closed"
+  });
+  return;
+}
 
-  if (!isValidAsset(trade.asset)) {
-    console.log("Invalid asset", trade.asset);
-    return;
-  }
+if (!isValidAsset(trade.asset)) {
+  await sendErrorResponse({
+    requestId: data.requestId,
+      type: "CLOSE_TRADE",
+    message: "invalid asset"
+  });
+  return;
+}
 
   const marginUsed = Number(trade.marginUsed);
   const exitPrice = getPrice(trade.asset);
@@ -52,6 +69,12 @@ export const closeTrade = async (data: any) => {
 
   if (!user) {
     console.log("user not found");
+
+    await sendErrorResponse({
+      requestId: data.requestId,
+      type: "CLOSE_TRADE",
+      message: "user not found"
+    })
     return;
   }
 
@@ -71,18 +94,21 @@ export const closeTrade = async (data: any) => {
       .where(eq(trades.id, tradeId));
     });
   } catch(err) {
-    console.log("DB trabsaction error");
+    await sendErrorResponse({
+      requestId: data.requestId,
+      type: "CLOSE_TRADE",
+      message: "database error"
+    });
+    return;
   }
-  
 
-  await pub.publish("channel:prices", JSON.stringify({
-    userId,
-    tradeId,
-    status,
-    pnl: pnlFixed
-  }))
-
-
+  await sendSuccessResponse({
+    requestId: data.requestId,
+    type: "CLOSE_TRADE",
+    tradeStatus: status,  // liquidated or closed
+    message: "Trade closed",
+    pnl: pnlFixed,
+  })
 
   console.log("Trade closed", {
     tradeId,
