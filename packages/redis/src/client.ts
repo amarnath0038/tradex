@@ -36,7 +36,13 @@ const createClient = (name: string) => {
 
 export const pub = createClient("pub");
 export const sub = createClient("sub");
-export const stream = createClient("stream"); // trade queue
+
+export const redisCommand = createClient("command");
+
+export const tradeCommandReader = createClient("trade-command-reader");
+
+export const tradeEventReader = createClient("trade-event-reader");
+
 export const state = createClient("state");   // GET/SET current system state
 
 
