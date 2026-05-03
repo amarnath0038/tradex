@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { Request, Response } from "express";
-import  { REDIS_KEYS, stream } from "@repo/redis"
+import  { REDIS_KEYS, redisCommand } from "@repo/redis"
 import { toStreamArgs } from "../utils/streamArgs";
 import { isMarketReady } from "../utils/isMarketReady";
 import { waitForResponse } from "../services/responseManager";
@@ -33,9 +33,9 @@ export const openTrade = async (req: Request, res: Response) => {
   const requestId = crypto.randomUUID();
   console.log("Sending trade event", requestId)
 
-  //const responsePromise = await waitForResponse(requestId);
+  const responsePromise =  waitForResponse(requestId);
   //send to redis stream
-  await stream.xadd(REDIS_KEYS.TRADES_STREAM, "*", ...toStreamArgs({
+  await redisCommand.xadd(REDIS_KEYS.TRADES_STREAM, "*", ...toStreamArgs({
     payload: JSON.stringify({
       type: "OPEN_TRADE",
       requestId,
@@ -47,9 +47,10 @@ export const openTrade = async (req: Request, res: Response) => {
     })
     })
   )
-
+  console.log("Trade event sent, waiting for response", requestId, Date.now())
   try {
-    const result = await waitForResponse(requestId);
+    const result = await responsePromise;
+    //const result = await waitForResponse(requestId);
     return res.json(result);
   } catch (err) {
     console.log("Open trade  failed", err)
@@ -72,8 +73,8 @@ export const closeTrade = async (req: Request, res: Response) => {
   }
 
   const requestId = crypto.randomUUID();
-  //const responsePromise = waitForResponse(requestId); 
-  await stream.xadd(REDIS_KEYS.TRADES_STREAM, "*", ...toStreamArgs({
+  const responsePromise = waitForResponse(requestId); 
+  await redisCommand.xadd(REDIS_KEYS.TRADES_STREAM, "*", ...toStreamArgs({
     payload: JSON.stringify({
       type: "CLOSE_TRADE",
       requestId,
@@ -84,7 +85,8 @@ export const closeTrade = async (req: Request, res: Response) => {
   );
 
   try {
-    const result = await waitForResponse(requestId);
+    const result = await responsePromise;
+    //const result = await waitForResponse(requestId);
     return res.json({
       data: result,
       status: result.status === "SUCCESS"

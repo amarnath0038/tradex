@@ -25,4 +25,7 @@ async function start() {
 
 }
 
-start();
+start().catch((err) => {
+  console.error("Backend failed to start:", err);
+  process.exit(1);
+});

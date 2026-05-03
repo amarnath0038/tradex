@@ -6,6 +6,7 @@ type PendingEntry = {
   resolve: (data: TradeResponse) => void;
   reject: (err: Error) => void;
   timeout: NodeJS.Timeout;
+  startedAt: number;
 };
 
 const pending = new Map<string, PendingEntry>();
@@ -29,14 +30,18 @@ export const initResponseListener = async () => {
 
     const data: TradeResponse = JSON.parse(message);
 
-    console.log("Received response:", data.requestId, data.status);
+    //console.log("Received response:", data.requestId, data.status, Date.now());
 
     const entry = pending.get(data.requestId);
 
     if (!entry) {
-      console.log("No pending request for:", data.requestId);
+      console.log("Late or unkown response", data.requestId);
       return;
     }
+
+    const elapsedSeconds = ((Date.now() - entry.startedAt) / 1000).toFixed(2);
+
+    console.log(`Received response ${data.requestId} ${data.status} after ${elapsedSeconds}s`);
 
     clearTimeout(entry.timeout);
     pending.delete(data.requestId);
@@ -47,16 +52,22 @@ export const initResponseListener = async () => {
 
 export const waitForResponse = (requestId: string): Promise<TradeResponse> => {
   return new Promise((resolve, reject) => {
+    const startedAt  = Date.now();
     const timeout = setTimeout(() => {
+      const elapsedSeconds = ((Date.now() - startedAt) / 1000).toFixed(2);
+
+      console.log(`Engine timeout fired ${requestId} after ${elapsedSeconds}s`);
       pending.delete(requestId);
       reject(new Error("Engine timeout"));
-    }, 5000);
+    }, 15000);
 
     pending.set(requestId, {
       resolve,
       reject,
       timeout,
+      startedAt: Date.now()
     });
+    console.log("Pending registered", requestId, Date.now());
   });
 };
 
