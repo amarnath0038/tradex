@@ -8,16 +8,29 @@ export const sendTradeResponse = async (data: {
     message?: string;
     [key: string]: any;
 }) => {
-    await pub.publish(
+    return pub.publish(
         REDIS_KEYS.TRADE_RESPONSES,
         JSON.stringify(data)
     )
 }
 
 export const sendSuccessResponse = (data: any) => {
-    sendTradeResponse({...data, status: "SUCCESS"})
+    return sendTradeResponse({...data, status: "SUCCESS"})
 }
 
 export const sendErrorResponse = (data: any) => {
-    sendTradeResponse({...data, status: "ERROR"})
+    return sendTradeResponse({...data, status: "ERROR"})
 }
+
+export const publishUserStateUpdate = async (data: {
+    userId: string;
+    type: string;
+    [key: string]: any;
+}) => {
+    return pub.publish(
+        REDIS_KEYS.USER_STATE_UPDATES,
+        JSON.stringify(data)
+    )
+}
+
+
