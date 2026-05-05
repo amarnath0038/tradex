@@ -1,8 +1,6 @@
-import { db, users, trades } from "@repo/db";
-import { eq, } from "@repo/db";
 import crypto from "crypto";
 import { getPrice } from "../store/priceStore";
-import { sendErrorResponse, sendSuccessResponse } from "@repo/redis";
+import { publishUserStateUpdate, sendErrorResponse, sendSuccessResponse } from "@repo/redis";
 import { addOpenTrade, debitUserBalance, removeOpenTrade, restoreUserBalance } from "../store/tradingState";
 import { appendTradeEvent } from "../services/tradeJournal";
 
@@ -93,7 +91,27 @@ export const openTrade = async (data:any) => {
         balance: debitResult.balance,
       },
     });
+
     console.log("Send response took", ((Date.now() - responseStart) / 1000).toFixed(2), "s");
+
+    const wsUpdateStart = Date.now();
+
+    await publishUserStateUpdate({
+      userId,
+      type: "TRADE_OPENED",
+      data: {
+        tradeId,
+        asset,
+        side,
+        leverage: lev,
+        positionSize: size,
+        marginUsed: requiredMargin,
+        entryPrice,
+        balance: debitResult.balance,
+        openedAt: createdAt
+      }
+    })
+    console.log("WS update took", ((Date.now() - wsUpdateStart)/ 1000).toFixed(2), "s");
   } catch (err) {
     restoreUserBalance(userId, debitResult.previousBalance);
     removeOpenTrade(tradeId);
