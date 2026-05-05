@@ -1,18 +1,23 @@
-import { db, trades, users } from "@repo/db";
-import { eq } from "@repo/db";
 import { getPrice } from "../store/priceStore";
 import { isValidAsset } from "../utils/isValidAsset";
-import { computeTradeOutcome } from "../utils/computeTradeOutcome";
-import { pub, REDIS_KEYS, sendErrorResponse, sendSuccessResponse, sendTradeResponse } from "@repo/redis";
-import { creditUserBalance, getOpenTrade, removeOpenTrade } from "../store/tradingState";
+import { sendErrorResponse, sendSuccessResponse} from "@repo/redis";
+import { addOpenTrade, creditUserBalance, getOpenTrade, removeOpenTrade, restoreUserBalance } from "../store/tradingState";
 import { calculatePnl } from "../utils/calculatePnl";
+import { appendTradeEvent } from "../services/tradeJournal";
 
 export const closeTrade = async (data: any) => {
+
+  const startedAt = Date.now();
+
   const { userId, tradeId } = data;
 
-  // const trade = await db.query.trades.findFirst({
-  //   where: (t, { eq }) => eq(t.id, tradeId)
-  // });
+  if (!userId || !tradeId) {
+    await sendErrorResponse({
+      requestId: data.requestId,
+      type: "CLOSE_TRADE",
+      message: "missing required fields"
+    })
+  }
 
   const trade = getOpenTrade(tradeId);
 
@@ -54,16 +59,14 @@ if (!isValidAsset(trade.asset)) {
 
   const marginUsed = Number(trade.marginUsed);
   const exitPrice = getPrice(trade.asset);
-  //const { rawPnl, liquidated, finalPnl, pnlFixed} = computeTradeOutcome(trade, exitPrice)
-  //const status = liquidated ? "LIQUIDATED" : "CLOSED";
-
-  // console.log({
-  //   rawPnl,
-  //   marginUsed,
-  //   finalPnl,
-  //   pnlFixed,
-  //   liquidated
-  // });
+  
+  if (!exitPrice) {
+    await sendErrorResponse({
+      requestId: data.requestId,
+      type: "CLOSE_TRADE",
+      message: "price not available"
+    })
+  }
 
   const pnl = calculatePnl(trade, exitPrice);
 
@@ -80,39 +83,27 @@ if (!isValidAsset(trade.asset)) {
     return;
   }
 
-  removeOpenTrade(tradeId);
-
-
-  // const user = await db.query.users.findFirst({
-  //   where: (u, { eq }) => eq(u.id, userId)
-  // });
-
-  // if (!user) {
-  //   console.log("user not found");
-
-  //   await sendErrorResponse({
-  //     requestId: data.requestId,
-  //     type: "CLOSE_TRADE",
-  //     message: "user not found"
-  //   })
-  //   return;
-  // }
-
-  // const newBalance = Number(Number(user.balance) + marginUsed + pnlFixed).toFixed(2);
+  
+  const closedAt = new Date().toISOString();
 
   try {
-    await db.transaction(async (tx) => {
-    await tx.update(users)
-      .set({ balance: creditResult.balance.toString() })
-      .where(eq(users.id, userId));
+    await appendTradeEvent({
+      type: "TRADE_CLOSED",
+      requestId: data.requestId,
+      tradeId,
+      userId,
+      asset: trade.asset,
+      side: trade.side,
+      entryPrice: trade.entryPrice,
+      exitPrice,
+      positionSize: trade.positionSize,
+      marginUsed,
+      pnl,
+      balanceAfter: creditResult.balance,
+      closedAt
+    })
 
-    await tx.update(trades)
-      .set({
-        status: "CLOSED",
-        exitPrice: exitPrice.toString()
-      })
-      .where(eq(trades.id, tradeId));
-    });
+    removeOpenTrade(tradeId);
 
     await sendSuccessResponse({
       requestId: data.requestId,
@@ -122,15 +113,20 @@ if (!isValidAsset(trade.asset)) {
         tradeId,
         exitPrice,
         pnl,
-        balance: creditResult.balance,
+        returnedAmount: amountToReturn,
+        balance: creditResult.balance
       }
     })
-  } catch(err) {
+  } catch (err) {
+    restoreUserBalance(userId, creditResult.previousBalance);
+    addOpenTrade(trade);
+
     await sendErrorResponse({
       requestId: data.requestId,
       type: "CLOSE_TRADE",
-      message: "database error"
-    });
-    return;
+      message: "Failed to journal trade close"
+    })
   }
+
+  console.log("CloseTrade total took", ((Date.now() - startedAt) / 1000).toFixed(2), "s");
 }
