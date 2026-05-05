@@ -18,5 +18,8 @@
     "@repo/typescript-config": "workspace:*",
     "axios": "^1.15.2",
     "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0"
   }
 }
