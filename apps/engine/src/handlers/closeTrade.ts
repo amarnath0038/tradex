@@ -1,6 +1,6 @@
 import { getPrice } from "../store/priceStore";
 import { isValidAsset } from "../utils/isValidAsset";
-import { sendErrorResponse, sendSuccessResponse} from "@repo/redis";
+import { publishUserStateUpdate, sendErrorResponse, sendSuccessResponse} from "@repo/redis";
 import { addOpenTrade, creditUserBalance, getOpenTrade, removeOpenTrade, restoreUserBalance } from "../store/tradingState";
 import { calculatePnl } from "../utils/calculatePnl";
 import { appendTradeEvent } from "../services/tradeJournal";
@@ -115,6 +115,23 @@ if (!isValidAsset(trade.asset)) {
         pnl,
         returnedAmount: amountToReturn,
         balance: creditResult.balance
+      }
+    })
+
+    await publishUserStateUpdate({
+      userId,
+      type: "TRADE_CLOSED",
+      data: {
+        tradeId,
+        asset: trade.asset,
+        side: trade.entryPrice,
+        exitPrice,
+        positionSize: trade.positionSize,
+        marginUsed,
+        pnl,
+        returnedAmount: amountToReturn,
+        balance: creditResult.balance,
+        closedAt
       }
     })
   } catch (err) {
