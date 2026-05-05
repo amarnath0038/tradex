@@ -70,3 +70,13 @@ export type TradeClosedEvent = {
 };
 
 export type TradeEvent = TradeOpenedEvent | TradeClosedEvent;
+
+
+export type AuthPayload = {
+  type: "AUTH";
+  token: string;
+}
+
+export type JwtPayload = {
+  userId: string;
+}
