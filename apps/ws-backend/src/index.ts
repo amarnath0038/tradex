@@ -1,28 +1,49 @@
-import { sub } from "@repo/redis";
+import { sub, REDIS_KEYS } from "@repo/redis";
 import { WSServer } from "./server";
 
-const wsServer = new WSServer(8080);
+const PORT = Number(process.env.WS_PORT) || 8080;
+const wsServer = new WSServer(PORT);
 
 async function start() {
-    console.log("WS server started");
-    await sub.subscribe("channel:prices", "channel:trades");
+    console.log(`WS server started on port ${PORT}`);
+
+    await sub.subscribe(REDIS_KEYS.PRICE_CHANNEL, REDIS_KEYS.USER_STATE_UPDATES);
+    console.log("WS subscribed to redis channels")
 
     sub.on("message", (channel, message) => {
-        const data = JSON.parse(message);
+        let data: any
+        try {
+            data = JSON.parse(message);
+        } catch (err) {
+            console.error("Invalid redis message", channel, message);
+            return;
+        }
+    
 
-        if (channel === "channel:prices") {
+        if (channel === REDIS_KEYS.PRICE_CHANNEL) {
             wsServer.broadcast({
-                type: "PRICE_UPDATE", ...data
+                type: "PRICE_UPDATE", 
+                data
             })
+            return;
         }
 
-        if (channel === "chanel:trades") {
+        if (channel === REDIS_KEYS.USER_STATE_UPDATES) {
+            if (!data.userId) {
+                console.error("USER_STATE_UPDTE missing userId", data)
+                return;
+            }
+
             wsServer.sendToUser(data.userId, {
-                type: "TRADE_UPDATE",
-                ...data
+                type: data.type,
+                data: data.data
             })
+            return;
         }
     })
 }
 
-start();
+start().catch((err) => {
+    console.error("WS server crashed", err);
+    process.exit(1);
+});

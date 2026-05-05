@@ -1,66 +1,196 @@
 import { WebSocket, WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
-const SECRET = process.env.JWT_SECRET as string;;
+import { AuthPayload, JwtPayload } from "@repo/types";
+
+const SECRET = process.env.JWT_SECRET as string;
+
 type Client = {
     ws: WebSocket;
     userId?: string;
+    isAlive: boolean;
+}
+
+
+const isAuthPayload = (data: any): data is AuthPayload => {
+    if (typeof data !== "object" || data === null) {
+        return false;
+    }
+    const obj = data as Record<string, unknown>;
+    return (
+        obj.type === "AUTH" && typeof obj.token === "string"
+    )  
+}
+
+const safeJsonParse = (msg: string) => {
+    try {
+        return JSON.parse(msg);
+    } catch {
+        return null;
+    }
 }
 
 export class WSServer {
     private wss: WebSocketServer;
-    private clients: Set<Client> = new Set();
+    private clients = new Set<Client>();
+    private userClients = new Map<string, Set<Client>>();
+    private heartbeatInterval: NodeJS.Timeout;
 
     constructor(port: number) {
         this.wss = new WebSocketServer({port});
 
         this.wss.on("connection", (ws) => {
-            const client: Client = {ws};
+            const client: Client = {ws, isAlive: true};
             this.clients.add(client);
             console.log("Client connected");
 
+            ws.on("pong", () => {
+                client.isAlive = true;
+            })
+
             ws.on("close", () => {
-                this.clients.delete(client);
+                this.removeClient(client);
                 console.log("Client disconnected");
             })
 
             ws.on("message", (msg) => {
                 this.handleMessage(client, msg.toString());
             })
+
+            ws.on("error", () => {
+                this.removeClient(client)
+            })
+
+            this.send(client, {
+                type: "CONNECTED",
+                message: "Websocket connected"
+            })
+        })
+
+        this.heartbeatInterval = setInterval(() => {
+            this.heartbeat()
+        }, 30000);
+
+        this.wss.on("close", () => {
+            clearInterval(this.heartbeatInterval)
         })
     }
 
     private handleMessage(client:Client, msg: string) {
-        try {
-            const data = JSON.parse(msg);
-            if (data.type === "AUTH") {
-                const decoded = jwt.verify(data.token, SECRET);
-                if (typeof decoded !== "object" || !("userId" in decoded)) {
-                    throw new Error("Inavlid token");
-                }
-                client.userId = decoded.userId as string;
-                console.log("Authenticated", client.userId);
+    
+        const data = safeJsonParse(msg);
+        if (!data) {
+            this.send(client, {
+                type: "ERROR",
+                message: "Invalid JSON"
+            })
+            return;
+        }
 
+        if (isAuthPayload(data)) {
+                this.authenticate(client, data.token);
+                return;
+        }
+        this.send(client, {
+            type: "ERROR",
+            message: "Unkown message type"
+        })     
+    }
+
+
+    private authenticate(client: Client, token: string) {
+        try {
+            const decoded = jwt.verify(token, SECRET) as JwtPayload;
+
+            if (!decoded.userId) {
+                throw new Error("Invalid token payload")
             }
-            
-        } catch(err) {
-            console.log("JWT verification failed");
+
+            //remove previous association
+            if (client.userId) {
+                this.detachUser(client);
+            }
+
+            client.userId = decoded.userId;
+
+            //get existing connnections
+            let clientsForUser = this.userClients.get(client.userId);
+
+            if (!clientsForUser) {
+                clientsForUser = new Set();
+                this.userClients.set(client.userId, clientsForUser)
+            }
+            clientsForUser.add(client);
+
+            this.send(client, {
+                type: "AUTHENTICATED",
+                userId: client.userId,
+            })
+            console.log("WS authenticated", client.userId);
+        
+        } catch (err) {
+            this.send(client, {
+                type: "AUTH_FAILED",
+                message: "Invalid token"
+            })
+            console.log("WS auth failed", err);
+
             client.ws.close();
         }
-            
-        }
-        broadcast(data: any) {
-            const payload = JSON.stringify(data);
-            for (const client of this.clients ) {
-                client.ws.send(payload);
-            }
-        }
+    }
 
-        sendToUser(userId: string, data: any) {
-            const payload = JSON.stringify(data);
-            for (const client of this.clients) {
-                if (client.userId === userId) {
-                    client.ws.send(payload);
-                }
-            }
+
+    private detachUser(client: Client) {
+        if (!client.userId) return;
+
+        const clientsForUser = this.userClients.get(client.userId);
+
+        if (!clientsForUser) return;
+
+        clientsForUser.delete(client);
+
+        //cleaning up empty users
+        if (clientsForUser.size === 0) {
+            this.userClients.delete(client.userId);
         }
     }
+
+
+    private removeClient(client: Client) {
+        this.detachUser(client);
+        this.clients.delete(client);
+    }
+
+    private heartbeat() {
+        for (const client of this.clients) {
+            if (!client.isAlive) {
+                client.ws.terminate()
+                this.removeClient(client)
+                continue;
+            }
+
+            client.isAlive = false;
+            client.ws.ping();
+        }
+    }
+
+    private send(client: Client, data: unknown) {
+        if (client.ws.readyState !== WebSocket.OPEN) return;
+        client.ws.send(JSON.stringify(data))
+    }
+
+    broadcast(data: unknown) {
+        for (const client of this.clients) {
+            this.send(client, data);
+        }
+    }
+
+    sendToUser(userId: string, data: unknown) {
+        const clientsForUser = this.userClients.get(userId);
+
+        if (!clientsForUser) return;
+
+        for (const client of clientsForUser) {
+            this.send(client, data);
+        }
+    }
+}
