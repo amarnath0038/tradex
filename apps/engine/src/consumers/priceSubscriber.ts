@@ -17,9 +17,9 @@ export const startPriceSubscriber = async () => {
             // update in-memory store
             updatePrices(asset, price);
 
-            console.log("Price updated:", asset, price);
+            //console.log("Price updated:", asset, price);
 
-            await processLiquidations(asset, price);
+           // await processLiquidations(asset, price);
         } catch (err) {
             console.log("Error while updating price", err);
         }
