@@ -14,7 +14,7 @@ let isReady = false;
 export const updatePrices = (asset: Asset, price: number) => {
   prices[asset] = price;
   
-  state.set(REDIS_KEYS.MARKET_LAST_UPADATE, Date.now(), 'EX', 5); // expires in 5 secs if no updates come
+  state.set(REDIS_KEYS.MARKET_LAST_UPDATE, Date.now(), 'EX', 5); // expires in 5 secs if no updates come
 
   if (!isReady) {
     console.log("Market is Live");
