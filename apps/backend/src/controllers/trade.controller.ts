@@ -4,6 +4,7 @@ import  { REDIS_KEYS, redisCommand } from "@repo/redis"
 import { toStreamArgs } from "../utils/streamArgs";
 import { isMarketReady } from "../utils/isMarketReady";
 import { waitForResponse } from "../services/responseManager";
+import { and, db, eq, trades, desc } from "@repo/db";
 
 //open trade
 export const openTrade = async (req: Request, res: Response) => {
@@ -97,3 +98,63 @@ export const closeTrade = async (req: Request, res: Response) => {
   }
 
 };
+
+
+//fetch open trades
+export const getOpenTrades = async (req: Request, res: Response) => {
+  const userId = req.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+
+  const openTrades = await db
+    .select()
+    .from(trades)
+    .where(and(eq(trades.userId, userId), eq(trades.status, "OPEN")))
+    .orderBy(desc(trades.createdAt));
+
+  return res.json(
+    openTrades.map((trade) => ({
+      tradeId: trade.id,
+      asset: trade.asset,
+      side: trade.side,
+      entryPrice: Number(trade.entryPrice),
+      currentPrice: Number(trade.entryPrice),
+      positionSize: Number(trade.positionSize),
+      leverage: Number(trade.leverage),
+      marginUsed: Number(trade.marginUsed),
+      openedAt: trade.createdAt,
+    }))
+  )
+}
+
+
+//get trade history
+export const getTradeHistory = async (req: Request, res: Response) => {
+  const userId = req.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: "unautohrized"})
+  }
+
+  const closedTrades = await db
+    .select()
+    .from(trades)
+    .where(and(eq(trades.userId, userId), eq(trades.status, "CLOSED")))
+    .orderBy(desc(trades.createdAt));
+
+  return res.json(
+    closedTrades.map((trade) => ({
+      tradeId: trade.id,
+      asset: trade.asset,
+      side: trade.side,
+      entryPrice: Number(trade.entryPrice),
+      closePrice: Number(trade.exitPrice),
+      positionSize: Number(trade.positionSize),
+      leverage: Number(trade.leverage),
+      marginUsed: Number(trade.marginUsed),
+      openedAt: trade.createdAt,
+    })),
+  );
+}
