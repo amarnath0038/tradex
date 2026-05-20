@@ -3,6 +3,7 @@ import { JWT_SECRET } from "./env";
 
 type JwtUser = {
   userId: string;
+  purpose?: string;
 };
 
 export const signToken = (payload: JwtUser, expiresIn: SignOptions["expiresIn"]) => {
