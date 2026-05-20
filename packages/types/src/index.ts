@@ -79,4 +79,5 @@ export type AuthPayload = {
 
 export type JwtPayload = {
   userId: string;
+  purpose?: string;
 }
